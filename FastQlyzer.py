@@ -41,6 +41,7 @@ numOfBasesPerRead= len(line)
 
 file.close()
 
+seqLength={}
 
 #Now that we know number of bases per line we can start reading
 #.fastq file again
@@ -55,6 +56,7 @@ numOfAperRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
 numOfTperRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
 numOfCperRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
 numOfGperRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
+numOfNperRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
 sumOfQualRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
 
 
@@ -64,6 +66,9 @@ numOfQualities=0
 GCcontentPerPositionInRead=[ float(i*0) for i in range(numOfBasesPerRead) ]
 GCdensity=[round(i*0.1,1) for i in range(1001)]
 GChowMany=[i*0 for i in range(len(GCdensity))]
+
+ATdensity=[round(i*0.1,1) for i in range(1001)]
+AThowMany=[i*0 for i in range(len(GCdensity))]
 
 #Density represent quality- xlabel
 #howMany represents howmanyQualities we have for each average value
@@ -87,7 +92,6 @@ for doc in docs:
 	file=open(doc,"r")
 
 	for line in file:
-
 		if order==0:
 			#Here we just read the sequence id
 			#We don't need to analyze this so we just skip this
@@ -97,19 +101,41 @@ for doc in docs:
 
 			#READING SEQUENCE
 			numOfSequences+=1
+			
+			#print len(line)
+			
+			if len(line)>len(numOfAperRead):
+				numOfAperRead.append(0.0)
+				numOfTperRead.append(0.0)
+				numOfCperRead.append(0.0)
+				numOfGperRead.append(0.0)
+				numOfNperRead.append(0.0)
+				GCcontentPerPositionInRead.append(0.0)
 
+			
+			
+			if len(line) not in seqLength.keys():
+				seqLength[len(line)]=1
+			else:
+				seqLength[len(line)]+=1
+			
 			numOfGCperSequence=0
+			numOfATperSequence=0
+			
 			#per base sequence content
-			for index in range(numOfBasesPerRead):
+			for index in range(len(line)):
 
 				if line[index]=='A':
 					totalChars+=1
 					numOfAperRead[index]+=1
+					numOfATperSequence+=1
+					
 
 				elif line[index]=='T':
 					totalChars+=1
 					numOfTperRead[index]+=1
-
+					numOfATperSequence+=1
+				
 				elif line[index]=='C':
 					totalChars+=1
 					numOfGCchar+=1
@@ -123,12 +149,21 @@ for doc in docs:
 					numOfGperRead[index]+=1
 					GCcontentPerPositionInRead[index]+=1
 					numOfGCperSequence+=1
+				
+				elif line[index]=='N':
+					totalChars+=1
+					numOfNperRead[index]+=1
 
-			average=numOfGCperSequence/float(numOfBasesPerRead)
+			average=numOfGCperSequence/float(len(line))
 			average*=100.0
 			indeksic=GCdensity.index(round(average,1))
 			GChowMany[indeksic]+=1
-
+			
+			average=numOfATperSequence/float(len(line))
+			average*=100.0
+			indeksic=GCdensity.index(round(average,1))
+			AThowMany[indeksic]+=1
+			
 			order=2
 
 		elif order==2:
@@ -145,7 +180,14 @@ for doc in docs:
 			numOfQualities+=1
 			seqQualitySum=0.0;
 
-			for index in range(numOfBasesPerRead):
+			if len(line)>len(sumOfQualRead):
+				sumOfQualRead.append(0.0)
+			
+			if len(line)>len(weightMatrix):
+				weightMatrix.append(qualDict)
+			
+			
+			for index in range(len(line)):
 				if line[index]!='\n':
 					quality=ord(line[index])
 					quality-=33
@@ -154,7 +196,7 @@ for doc in docs:
 					if quality in weightMatrix[index].keys():
 						weightMatrix[index][quality]+=1
 
-			seqQualitySum/=float(numOfBasesPerRead);
+			seqQualitySum/=float(len(line));
 			seqQualitySum=round(seqQualitySum,0);
 			middleValue=seqQualitySum
 			if middleValue<poorQualityBorderValue:
@@ -165,10 +207,7 @@ for doc in docs:
 	file.close()
 
 
-
-
-
-for i in range(numOfBasesPerRead):
+for i in range(len(numOfAperRead)):
 
 	numOfAperRead[i]/=float(numOfSequences)
 	numOfAperRead[i]*=100
@@ -181,6 +220,9 @@ for i in range(numOfBasesPerRead):
 
 	numOfGperRead[i]/=float(numOfSequences)
 	numOfGperRead[i]*=100
+	
+	numOfNperRead[i]/=float(numOfSequences)
+	numOfNperRead[i]*=100
 
 	GCcontentPerPositionInRead[i]/=float(numOfSequences)
 	GCcontentPerPositionInRead[i]*=100
@@ -198,7 +240,7 @@ def median(lst):
     else:
             return float(sum(lst[(len(lst)/2)-1:(len(lst)/2)+1]))/2.0
 
-medians=[0.0 for i in range(numOfBasesPerRead)]
+medians=[0.0 for i in range(len(numOfAperRead))]
 leftIndex=0
 rightIndex=0
 medianIndex=0
@@ -254,7 +296,7 @@ import matplotlib.patches as mpatches
 from matplotlib.backends.backend_pdf import PdfPages
 from numpy import arange
 
-x=[i for i in range(numOfBasesPerRead)]
+x=[i for i in range(len(numOfAperRead))]
 #########################################################################################
 #########################################################################################
 
@@ -279,7 +321,7 @@ g = "Seq. Flaged as"\
 plt.text(1, 5, g, ha='left', wrap=True,color='mediumslateblue')
 plt.text(8, 5, str(numOfSeqflagedAsPoor), ha='left', wrap=True)
 plt.text(1, 3, 'Sequence Length:', ha='left', wrap=True, color='mediumslateblue')
-plt.text(6, 3, str(numOfBasesPerRead), ha='left', wrap=True)
+plt.text(6, 3, str(len(numOfAperRead)), ha='left', wrap=True)
 plt.text(1, 1, '%GC:', ha='left', wrap=True,color='mediumslateblue')
 plt.text(3, 1, str(round(numOfGCchar/float(totalChars)*100,1)), ha='left', wrap=True)
 plt.rcParams['axes.facecolor'] = 'gainsboro'
@@ -292,7 +334,7 @@ fig1=plt.figure(1)
 #ax.fill(x,[9 for i in range(len(x))])
 axes=plt.gca()
 axes.set_ylim([0,60])
-axes.set_xlim([0,numOfBasesPerRead-2])
+axes.set_xlim([0,len(numOfAperRead)-3])
 plt.xlabel('Position in read(bp)')
 plt.ylabel('Quality')
 plt.title('Quality scores across all bases')
@@ -346,10 +388,31 @@ plt.legend(handles=[blue_patch,red_patch,green_patch,yellow_patch])
 plt.grid(True)
 
 axes=plt.gca()
-axes.set_xlim([0,numOfBasesPerRead-2])
+axes.set_xlim([0,len(numOfAperRead)-3])
 axes.set_ylim([0,100])
 
 plt.plot(x,numOfAperRead,'b',x,numOfTperRead,'g',x,numOfCperRead,'y',x,numOfGperRead,'r',lw=2)
+plt.plot(x,[0 for i in range(len(x))],'k|')
+
+#########################################################################################
+#########################################################################################
+
+#Per base sequence content
+#Sequence content across all bases
+fig4=plt.figure(4)
+
+plt.xlabel('Position in read(bp)')
+plt.title('AT/GC ratio')
+plt.grid(True)
+
+axes=plt.gca()
+axes.set_xlim([0,len(numOfAperRead)-3])
+
+for i in range(len(numOfAperRead)):
+	numOfAperRead[i]+=numOfTperRead[i]
+	numOfGperRead[i]+=numOfCperRead[i]
+	numOfAperRead[i] = (numOfAperRead[i] / numOfGperRead[i] ) if numOfGperRead[i] != 0 else 0
+plt.plot(x,numOfAperRead,'b',lw=2)
 plt.plot(x,[0 for i in range(len(x))],'k|')
 
 ################################################################################################
@@ -357,24 +420,24 @@ plt.plot(x,[0 for i in range(len(x))],'k|')
 
 #Per base GC content
 #GC content across all bases
-fig4=plt.figure(4)
+fig5=plt.figure(5)
 plt.rcParams['axes.facecolor'] = 'linen'
 plt.xlabel('Position in read(bp)')
 plt.ylabel('Proportion[%]')
 plt.title('GC content across all bases')
 plt.grid(True)
 axes=plt.gca()
-axes.set_xlim([0,numOfBasesPerRead-2])
+axes.set_xlim([0,len(numOfAperRead)-3])
 axes.set_ylim([0,100])
 #axes.xaxis.set_major_formatter(plt.NullFormatter())
-plt.plot(x,GCcontentPerPositionInRead,'g')
+plt.plot(x,GCcontentPerPositionInRead,'g',)
 
 ################################################################################################
 ################################################################################################
 
 #Per Sequence GC Content
 #GC distribution over all sequences
-fig5=plt.figure(5)
+fig6=plt.figure(6)
 plt.rcParams['axes.facecolor'] = 'linen'
 plt.xlabel('Mean GC content (%)')
 #plt.ylabel('Proportion[%]')
@@ -384,10 +447,80 @@ red_patch = mpatches.Patch(color='red', label='GC count per read')
 plt.legend(handles=[red_patch])
 
 plt.plot(GCdensity,GChowMany,'r')
+####################################################################################################
+####################################################################################################
+
+#Per Sequence AT Content
+#AT distribution over all sequences
+fig7=plt.figure(7)
+plt.rcParams['axes.facecolor'] = 'linen'
+plt.xlabel('Mean AT content (%)')
+#plt.ylabel('Proportion[%]')
+plt.title('AT distribution over all sequences')
+plt.grid(True)
+blue_patch = mpatches.Patch(color='blue', label='AT count per read')
+plt.legend(handles=[blue_patch])
+
+plt.plot(ATdensity,AThowMany,'b')
+####################################################################################################
+####################################################################################################
+
+lengths=seqLength.keys()
+lengths=sorted(lengths)
+
+distribution=[0 for i in range(len(lengths))]
 
 
+for i in range(len(lengths)):
+	distribution[i]=seqLength.get(lengths[i])
+
+#print len(lengths)
+	
+if len(lengths)==1:
+	only=lengths[0]
+	lengths=[only-1,only,only+1]
+	distribution=[0,seqLength.get(only),0]
+	
+
+	
+fig8=plt.figure(8)
+plt.title('Sequence Length Distribution')
+axes=plt.gca()
+axes.set_ylim([0,numOfSequences+2])
+plt.plot(lengths,distribution,'b')
+
+
+#####################################################################################################
+#####################################################################################################
+
+fig9=plt.figure(9)
+
+red_patch = mpatches.Patch(color='red', label='%N')
+
+
+plt.xlabel('Position in read(bp)')
+plt.ylabel('Proportion[%]')
+plt.title('N content across all bases')
+
+plt.legend(handles=[red_patch])
+plt.grid(True)
+
+axes=plt.gca()
+axes.set_xlim([0,len(numOfAperRead)-3])
+axes.set_ylim([0,15])
+
+plt.plot(x,numOfNperRead,'r',lw=2)
+#plt.plot(x,[0 for i in range(len(x))],'k|')
+
+
+
+
+
+
+########################################################################################################
+########################################################################################################
 #Testing time!
-plt.show()
+#plt.show()
 
 #Saving graphs into a single pdf file
 import matplotlib.backends.backend_pdf
@@ -399,5 +532,9 @@ pdf.savefig(fig2)
 pdf.savefig(fig3)
 pdf.savefig(fig4)
 pdf.savefig(fig5)
+pdf.savefig(fig6)	
+pdf.savefig(fig7)
+pdf.savefig(fig8)
+pdf.savefig(fig9)
 
 pdf.close()
