@@ -1,5 +1,5 @@
 # FastQlyzer
-
+!!!!!!!!!!!!SEE FASTQLYZER REPORT FILES!!!!!!!!!!!!!!!
 
 Python tool that provides a way to do some quality and content control
 checks on raw sequence data coming from high throughput sequencing pipelines.
